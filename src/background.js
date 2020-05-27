@@ -20,7 +20,7 @@ function createWindow () {
     width: 1366,
     height: 768,
     frame: false, //无框
-    transparent: true, //透明
+    transparent: false, //透明
     webPreferences: {
       nodeIntegration: true
     }
