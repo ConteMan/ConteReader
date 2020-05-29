@@ -28,7 +28,7 @@
             <div class="content">
                 <div class="sider">
                     <a-list class="feed-list" item-layout="horizontal" :data-source="feedList" :split="false">
-                        <a-list-item class="feed-list-item" slot="renderItem" slot-scope="item, index" :key="index" @click="getTitleList(item.url)">
+                        <a-list-item class="feed-list-item" slot="renderItem" slot-scope="item, index" :key="index" @click="getTitleList(item.url, {proxy: item.proxy ? item.proxy : ''})">
                             {{ item.title }}
                         </a-list-item>
                     </a-list>
@@ -61,11 +61,14 @@
               @close="onClose"
             >
                 <div>
-                    <a-form-model :model="form" :label-col="labelCol" :wrapper-col="wrapperCol">
+                    <a-form-model ref="addFeedForm" :model="form" :label-col="labelCol" :wrapper-col="wrapperCol">
                         <a-form-model-item :label="$t('feed.form.urlTitle')">
                             <a-input v-model="form.url" />
                         </a-form-model-item>
-                        <a-form-model-item :label="$t('feed.form.previewTitle')">
+                        <a-form-model-item :label="$t('feed.form.proxyTitle')">
+                            <a-input v-model="form.proxy" />
+                        </a-form-model-item>
+                        <a-form-model-item v-if="feedPreview" :label="$t('feed.form.previewTitle')">
                             {{ feedPreview }}
                         </a-form-model-item>
                     </a-form-model>
@@ -109,6 +112,7 @@ export default {
             wrapperCol: { span: 14 },
             form: {
                 url: '',
+                proxy: '',
             },
             feedPreview: '',
             addFeedLoading: false,
@@ -149,6 +153,7 @@ export default {
         },
         onClose() {
             this.addDrawerVisible = false
+            this.addReset()
         },
         showAdd() {
             this.addDrawerVisible = !this.addDrawerVisible
@@ -159,7 +164,7 @@ export default {
             // console.log(res)
             this.addFeedLoading = true
             console.log('start ')
-            let feedInfo = await parserFeed(this.form.url)
+            let feedInfo = await parserFeed(this.form.url, { proxy: this.form.proxy })
             console.log(feedInfo)
             this.addFeedLoading = false
             if (!feedInfo) {
@@ -181,12 +186,22 @@ export default {
                         oriUrl: this.form.url,
                         url: url,
                         title: feedInfo.title,
+                        proxy: this.form.proxy,
                     })
                     .write()
+                res = res ? this.$t("message.addSuccess") : this.$t("message.addFail")
                 await this.$message.success(res)
             } else {
                 await this.$message.success(this.$t("message.addExist"))
             }
+        },
+        //重置添加
+        addReset() {
+            this.$refs.addFeedForm.resetFields()
+            this.form.url = ''
+            this.form.proxy = ''
+            this.feedPreview = ''
+            this.addFeedLoading = false
         },
         //FeedList
         async getFeedList() {
@@ -195,8 +210,8 @@ export default {
                 .get('feeds')
                 .value()
         },
-        async getTitleList(url) {
-            let feedInfo = await parserFeed(url)
+        async getTitleList(url, options) {
+            let feedInfo = await parserFeed(url, options)
             console.log(feedInfo)
             if (feedInfo) {
                 this.items = feedInfo.items
