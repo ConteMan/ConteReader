@@ -1,9 +1,20 @@
 <template>
-  <div id="app">
-    <router-view/>
-  </div>
+  <a-config-provider :locale="zhCN">
+    <div id="app">
+      <router-view/>
+    </div>
+  </a-config-provider>
 </template>
-
+<script>
+  import zhCN from 'ant-design-vue/es/locale/zh_CN';
+  export default {
+    data() {
+      return {
+        zhCN,
+      };
+    }
+  }
+</script>
 <style lang="less">
   html {
     margin: 0;
@@ -39,6 +50,7 @@
    }
   #app {
     height: 100%;
+    min-width: 1366px;
     border-radius: 0;
     background: #fff;
   }

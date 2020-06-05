@@ -6,7 +6,7 @@ export default {
         addExist: '已存在，请确认',
     },
     feed: {
-        addTitle: '添加 Feed',
+        addTitle: '添加订阅',
         form : {
             urlTitle: '订阅地址',
             proxyTitle: '代理',

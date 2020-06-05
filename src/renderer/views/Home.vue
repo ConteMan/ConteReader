@@ -28,8 +28,15 @@
             <div class="content">
                 <div class="sider">
                     <a-list class="feed-list" item-layout="horizontal" :data-source="feedList" :split="false">
-                        <a-list-item class="feed-list-item" slot="renderItem" slot-scope="item, index" :key="index" @click="getTitleList(item.url, {proxy: item.proxy ? item.proxy : ''})">
-                            {{ item.title }}
+                        <a-list-item class="feed-list-item" slot="renderItem" slot-scope="item, index" :key="index" @click="getTitleList(item)">
+                            <a-dropdown :trigger="['contextmenu']">
+                                <div class="feed-title">{{ item.title }}</div>
+                                <a-menu slot="overlay">
+                                    <a-menu-item key="1" @click="queryFeedList(item)">
+                                        更新
+                                    </a-menu-item>
+                                </a-menu>
+                            </a-dropdown>
                         </a-list-item>
                     </a-list>
                 </div>
@@ -42,15 +49,14 @@
                 </div>
                 <div class="detail">
                     <template v-if="detailContent.content">
-                        <div v-html="detailContent.content">
-
-                        </div>
+                        <div v-html="detailContent.content"></div>
                     </template>
                     <div v-else>
                         {{ detailContent.title }}
                     </div>
                 </div>
             </div>
+
             <a-drawer
               :title="$t('feed.addTitle')"
               placement="right"
@@ -91,6 +97,7 @@
                     </a-button>
                 </div>
             </a-drawer>
+
       </div>
 </template>
 
@@ -98,6 +105,7 @@
 const electron = require('electron');
 const remote = electron.remote;
 
+import dayjs from 'dayjs'
 import { parserFeed } from "../parser/feed.js"
 
 export default {
@@ -160,39 +168,42 @@ export default {
         },
         //添加 Feed
         async addFeed() {
-            // console.log(this.form)
-            // console.log(res)
-            this.addFeedLoading = true
-            console.log('start ')
-            let feedInfo = await parserFeed(this.form.url, { proxy: this.form.proxy })
-            console.log(feedInfo)
-            this.addFeedLoading = false
-            if (!feedInfo) {
-                this.$message.error(this.$t("message.addFail"))
-                return false
-            }
-            this.feedPreview = feedInfo.title
-            console.log(feedInfo)
-            let url = feedInfo.feedUrl ? feedInfo.feedUrl : this.form.url
-            let existItem = await this.$db
-                    .get('feeds')
-                    .find({url: url})
-                    .value()
-            console.log(existItem)
-            if(!existItem) {
-                let res = await this.$db
-                    .get('feeds')
-                    .insert({
-                        oriUrl: this.form.url,
-                        url: url,
-                        title: feedInfo.title,
-                        proxy: this.form.proxy,
-                    })
-                    .write()
-                res = res ? this.$t("message.addSuccess") : this.$t("message.addFail")
-                await this.$message.success(res)
-            } else {
-                await this.$message.success(this.$t("message.addExist"))
+            try {
+                // console.log(this.form)
+                // console.log(res)
+                this.addFeedLoading = true
+                console.log('start ')
+                let feedInfo = await parserFeed(this.form.url, {proxy: this.form.proxy})
+                console.log(feedInfo)
+                this.addFeedLoading = false
+                if (!feedInfo) {
+                    this.$message.error(this.$t("message.addFail"))
+                    return false
+                }
+                this.feedPreview = feedInfo.title
+                console.log(feedInfo)
+                let url = feedInfo.feedUrl ? feedInfo.feedUrl : this.form.url
+
+                console.log(this.$nedb.feeds)
+                let existItem = await this.$nedb.feeds.findOne({url: url})
+                console.log(existItem)
+                if (!existItem) {
+                    let res = await this.$nedb
+                        .feeds
+                        .insert({
+                            oriUrl: this.form.url,
+                            url: url,
+                            title: feedInfo.title,
+                            proxy: this.form.proxy,
+                        })
+                    res = res ? this.$t("message.addSuccess") : this.$t("message.addFail")
+                    await this.$message.success(res)
+                } else {
+                    await this.$message.success(this.$t("message.addExist"))
+                }
+                await this.getFeedList()
+            } catch (e) {
+                console.log(e)
             }
         },
         //重置添加
@@ -205,24 +216,70 @@ export default {
         },
         //FeedList
         async getFeedList() {
-            this.feedList = await this.$db
-                .read()
-                .get('feeds')
-                .value()
-        },
-        async getTitleList(url, options) {
-            let feedInfo = await parserFeed(url, options)
-            console.log(feedInfo)
-            if (feedInfo) {
-                this.items = feedInfo.items
+            try{
+                this.feedList = await this.$nedb
+                    .feeds
+                    .find({})
+                console.log(this.feedList)
+            } catch (e) {
+                console.log(e)
             }
         },
+        //获取列表
+        async getTitleList(item) {
+            this.items = await this.$nedb.feed_records.find({feed_id: item._id}).sort({created_at: -1})
+        },
+        //获取详情
         getDetailContent(index) {
             this.detailContent = this.items[index]
-        }
+        },
+        //更新
+        async queryFeedList(current) {
+            try{
+                let options = {
+                    proxy: current.proxy ? current.proxy : ''
+                }
+                let feedInfo = await parserFeed(current.url, options)
+                let count = 0
+                if (feedInfo) {
+                    for(let index in feedInfo.items) {
+                        let item = feedInfo.items[index]
+                        let existItem = await this.$nedb.feed_records.findOne({guid: item.guid})
+                        if(!existItem) {
+                            count++;
+                            await this.$nedb.feed_records.insert(
+                                {
+                                    feed_id: current._id,
+                                    title: item.title,
+                                    guid: item.guid,
+                                    link: item.link,
+                                    content: item.content,
+                                    content_snippet: item.content_snippet,
+                                    publish_at: item.pubDate ? item.pubDate : '',
+                                    created_at: dayjs().second(),
+                                    updated_at: dayjs().second(),
+                                    deleted_at: 0
+                                }
+                            )
+                        }
+                    }
+                }
+                this.openNotificationWithIcon('success', '更新成功'+count+'条')
+            } catch (e) {
+                console.log(e)
+            }
+        },
+        openNotificationWithIcon(type, message, des) {
+            this.$notification[type]({
+                message: message,
+                description: des
+            });
+        },
     },
     mounted() {
         this.getFeedList()
+    },
+    async created() {
     }
 }
 </script>
@@ -305,6 +362,11 @@ export default {
                 .feed-list-item {
                     padding: 10px;
                     cursor: pointer;
+                    .feed-title {
+                        text-align: left;
+                        width: 100%;
+                        height: 100%;
+                    }
                 }
             }
         }

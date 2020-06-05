@@ -1751,6 +1751,11 @@ async-validator@^3.0.3:
   resolved "https://registry.npm.taobao.org/async-validator/download/async-validator-3.3.0.tgz#1d92193bbe60d6d6c8b246692c7005e9ed14a8ee"
   integrity sha1-HZIZO75g1tbIskZpLHAF6e0UqO4=
 
+async@0.2.10:
+  version "0.2.10"
+  resolved "https://registry.npm.taobao.org/async/download/async-0.2.10.tgz#b6bbe0b0674b9d719708ca38de8c237cb526c3d1"
+  integrity sha1-trvgsGdLnXGXCMo43owjfLUmw9E=
+
 async@^2.0.0, async@^2.6.2:
   version "2.6.3"
   resolved "https://registry.npm.taobao.org/async/download/async-2.6.3.tgz#d72625e2344a3656e3a3ad4fa749fa83299d82ff"
@@ -1910,6 +1915,13 @@ binary-extensions@^2.0.0:
   version "2.0.0"
   resolved "https://registry.npm.taobao.org/binary-extensions/download/binary-extensions-2.0.0.tgz#23c0df14f6a88077f5f986c0d167ec03c3d5537c"
   integrity sha1-I8DfFPaogHf1+YbA0WfsA8PVU3w=
+
+binary-search-tree@0.2.5:
+  version "0.2.5"
+  resolved "https://registry.npm.taobao.org/binary-search-tree/download/binary-search-tree-0.2.5.tgz#7dbb3b210fdca082450dad2334c304af39bdc784"
+  integrity sha1-fbs7IQ/coIJFDa0jNMMErzm9x4Q=
+  dependencies:
+    underscore "~1.4.4"
 
 bindings@^1.5.0:
   version "1.5.0"
@@ -3187,6 +3199,11 @@ data-uri-to-buffer@1:
   version "1.2.0"
   resolved "https://registry.npm.taobao.org/data-uri-to-buffer/download/data-uri-to-buffer-1.2.0.tgz#77163ea9c20d8641b4707e8f18abdf9a78f34835"
   integrity sha1-dxY+qcINhkG0cH6PGKvfmnjzSDU=
+
+dayjs@^1.8.28:
+  version "1.8.28"
+  resolved "https://registry.npm.taobao.org/dayjs/download/dayjs-1.8.28.tgz#37aa6201df483d089645cb6c8f6cef6f0c4dbc07"
+  integrity sha1-N6piAd9IPQiWRctsj2zvbwxNvAc=
 
 de-indent@^1.0.2:
   version "1.0.2"
@@ -5671,6 +5688,11 @@ jest-worker@^25.1.0:
     merge-stream "^2.0.0"
     supports-color "^7.0.0"
 
+js-md5@^0.7.3:
+  version "0.7.3"
+  resolved "https://registry.npm.taobao.org/js-md5/download/js-md5-0.7.3.tgz#b4f2fbb0b327455f598d6727e38ec272cd09c3f2"
+  integrity sha1-tPL7sLMnRV9ZjWcn447Ccs0Jw/I=
+
 js-message@1.0.5:
   version "1.0.5"
   resolved "https://registry.npm.taobao.org/js-message/download/js-message-1.0.5.tgz#2300d24b1af08e89dd095bc1a4c9c9cfcb892d15"
@@ -5931,6 +5953,13 @@ levn@^0.3.0, levn@~0.3.0:
     prelude-ls "~1.1.2"
     type-check "~0.3.2"
 
+lie@3.1.1:
+  version "3.1.1"
+  resolved "https://registry.npm.taobao.org/lie/download/lie-3.1.1.tgz#9a436b2cc7746ca59de7a41fa469b3efb76bd87e"
+  integrity sha1-mkNrLMd0bKWd56QfpGmz77dr2H4=
+  dependencies:
+    immediate "~3.0.5"
+
 lie@~3.3.0:
   version "3.3.0"
   resolved "https://registry.npm.taobao.org/lie/download/lie-3.3.0.tgz#dcf82dee545f46074daf200c7c1c5a08e0f40f6a"
@@ -5985,6 +6014,13 @@ loader-utils@^1.0.2, loader-utils@^1.1.0, loader-utils@^1.2.3, loader-utils@^1.4
     big.js "^5.2.2"
     emojis-list "^3.0.0"
     json5 "^1.0.1"
+
+localforage@^1.3.0:
+  version "1.7.3"
+  resolved "https://registry.npm.taobao.org/localforage/download/localforage-1.7.3.tgz#0082b3ca9734679e1bd534995bdd3b24cf10f204"
+  integrity sha1-AIKzypc0Z54b1TSZW907JM8Q8gQ=
+  dependencies:
+    lie "3.1.1"
 
 locate-path@^2.0.0:
   version "2.0.0"
@@ -6520,6 +6556,24 @@ natural-compare@^1.4.0:
   version "1.4.0"
   resolved "https://registry.npm.taobao.org/natural-compare/download/natural-compare-1.4.0.tgz#4abebfeed7541f2c27acfb29bdbbd15c8d5ba4f7"
   integrity sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=
+
+nedb-promises@^4.0.3:
+  version "4.0.3"
+  resolved "https://registry.npm.taobao.org/nedb-promises/download/nedb-promises-4.0.3.tgz#136df5254f6c3052e97547fc0403a92492d8cc11"
+  integrity sha1-E231JU9sMFLpdUf8BAOpJJLYzBE=
+  dependencies:
+    nedb "^1.8.0"
+
+nedb@^1.8.0:
+  version "1.8.0"
+  resolved "https://registry.npm.taobao.org/nedb/download/nedb-1.8.0.tgz#0e3502cd82c004d5355a43c9e55577bd7bd91d88"
+  integrity sha1-DjUCzYLABNU1WkPJ5VV3vXvZHYg=
+  dependencies:
+    async "0.2.10"
+    binary-search-tree "0.2.5"
+    localforage "^1.3.0"
+    mkdirp "~0.5.1"
+    underscore "~1.4.4"
 
 negotiator@0.6.2:
   version "0.6.2"
@@ -9482,6 +9536,11 @@ uglify-js@3.4.x:
   dependencies:
     commander "~2.19.0"
     source-map "~0.6.1"
+
+underscore@~1.4.4:
+  version "1.4.4"
+  resolved "https://registry.npm.taobao.org/underscore/download/underscore-1.4.4.tgz?cache=0&sync_timestamp=1585603748606&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Funderscore%2Fdownload%2Funderscore-1.4.4.tgz#61a6a32010622afa07963bf325203cf12239d604"
+  integrity sha1-YaajIBBiKvoHljvzJSA88SI51gQ=
 
 unicode-canonical-property-names-ecmascript@^1.0.4:
   version "1.0.4"

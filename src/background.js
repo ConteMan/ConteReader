@@ -7,6 +7,10 @@ import {
 } from 'vue-cli-plugin-electron-builder/lib'
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
+import nedb from './universal/nedb'
+const globalAny = global;
+globalAny.nedb = nedb;
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let win
@@ -19,6 +23,8 @@ function createWindow () {
   win = new BrowserWindow({
     width: 1366,
     height: 768,
+    minWidth: 1366,
+    minHeight: 768,
     frame: false, //无框
     transparent: false, //透明
     webPreferences: {

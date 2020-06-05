@@ -16,11 +16,11 @@ if (process.type !== 'renderer') {
 
 const adapter = new FileSync(path.join(STORE_PATH, '/data.json'))
 
-const db = Datastore(adapter)
-db._.mixin(LodashId)
+const lowdb = Datastore(adapter)
+lowdb._.mixin(LodashId)
 
-if (!db.has('feeds').value()) {
-    db.set('feeds', []).write()
+if (!lowdb.has('feeds').value()) {
+    lowdb.set('feeds', []).write()
 }
 
-export default db
+export default lowdb
