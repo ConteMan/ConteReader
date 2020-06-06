@@ -6,6 +6,7 @@ import i18n from './renderer/lang'
 import { remote } from 'electron'
 
 import 'ant-design-vue/dist/antd.css';
+import './renderer/style/index.less'
 
 import '@/core/lazy_use'
 

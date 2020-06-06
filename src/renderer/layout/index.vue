@@ -8,7 +8,7 @@
 </template>
 
 <script>
-    import TopBar from '@/layout/components/header'
+    import TopBar from '@/layout/components/TopBar'
 
     export default {
         name: "index",

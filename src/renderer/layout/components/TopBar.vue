@@ -30,20 +30,37 @@
             :closable="false"
             :visible="addDrawerVisible"
             :wrap-style="{ position: 'absolute' }"
+            :headerStyle="{ position: 'absolute', width: '100%', zIndex: '1'}"
+            :bodyStyle="{ marginTop: '60px' }"
             width="800"
             @close="closeAdd"
         >
             <div>
-                <a-form-model ref="addFeedForm" :model="form" :label-col="labelCol" :wrapper-col="wrapperCol">
-                    <a-form-model-item :label="$t('feed.form.urlTitle')">
+                <a-form-model ref="addFeedForm" :model="form" :rules="formRules" :label-col="labelCol" :wrapper-col="wrapperCol">
+                    <a-form-model-item  ref="url" :label="$t('feed.form.urlTitle')" prop="url">
                         <a-input v-model="form.url" />
                     </a-form-model-item>
-                    <a-form-model-item :label="$t('feed.form.proxyTitle')">
+                    <a-form-model-item :label="$t('feed.form.proxyTitle')" prop="proxy">
                         <a-input v-model="form.proxy" />
                     </a-form-model-item>
-                    <a-form-model-item v-if="feedPreview" :label="$t('feed.form.previewTitle')">
-                        {{ feedPreview }}
-                    </a-form-model-item>
+                    <template v-if="feedPreview.length > 0">
+                        <a-form-model-item label=" " :colon="false">
+                            <a-list item-layout="horizontal" :data-source="feedPreview" :split="false" size="small">
+                                <a-list-item class="no-flex" slot="renderItem" slot-scope="item">
+                                    <template v-if="item.keyName != 'items'">
+                                        <span class="text-bold margin-right-sm">{{ item.keyTitle }}: </span>
+                                        {{ item.content }}
+                                    </template>
+                                    <template v-else>
+                                        <div class="text-bold">{{ item.keyTitle }}:</div>
+                                        <template v-for="(iItem,iIndex) in item.content">
+                                            <div :key="iIndex">{{ iItem.title }}</div>
+                                        </template>
+                                    </template>
+                                </a-list-item>
+                            </a-list>
+                        </a-form-model-item>
+                    </template>
                 </a-form-model>
             </div>
             <div
@@ -59,6 +76,9 @@
                   zIndex: 1,
                 }"
             >
+                <a-button class="margin-right-sm" type="primary" :loading="previewLoading" @click="privewFeed">
+                    {{ $t('feed.form.previewBtn') }}
+                </a-button>
                 <a-button type="primary" :loading="addFeedLoading" @click="addFeed">
                     {{ $t('feed.form.submitBtn') }}
                 </a-button>
@@ -74,7 +94,7 @@
     const remote = electron.remote;
 
     export default {
-        name: "header",
+        name: "TopBar",
         data() {
             return {
                 addDrawerVisible: false,
@@ -85,8 +105,14 @@
                     url: '',
                     proxy: '',
                 },
-                feedPreview: '',
+                formRules: {
+                    url: [
+                        { required: true, message: this.$t("feed.form.rules.url"), trigger: 'blur' },
+                    ]
+                },
+                feedPreview: [],
                 addFeedLoading: false,
+                previewLoading: false,
                 feedList: [],
                 items: [],
                 detailContent: '',
@@ -119,6 +145,7 @@
                         break;
                 }
             },
+
             showAdd() {
                 this.addDrawerVisible = !this.addDrawerVisible
             },
@@ -128,11 +155,10 @@
             },
             //添加 Feed
             async addFeed() {
+                let res = await this.$refs.addFeedForm.validate();
+                if (!res) return false
                 try {
-                    // console.log(this.form)
-                    // console.log(res)
                     this.addFeedLoading = true
-                    console.log('start ')
                     let feedInfo = await parserFeed(this.form.url, {proxy: this.form.proxy})
                     console.log(feedInfo)
                     this.addFeedLoading = false
@@ -140,12 +166,11 @@
                         this.$message.error(this.$t("message.addFail"))
                         return false
                     }
-                    this.feedPreview = feedInfo.title
-                    console.log(feedInfo)
                     let url = feedInfo.feedUrl ? feedInfo.feedUrl : this.form.url
 
-                    console.log(this.$nedb.feeds)
-                    let existItem = await this.$nedb.feeds.findOne({url: url})
+                    let existItem = await this.$nedb
+                        .feeds
+                        .findOne({url: url})
                     console.log(existItem)
                     if (!existItem) {
                         let res = await this.$nedb
@@ -157,9 +182,9 @@
                                 proxy: this.form.proxy,
                             })
                         res = res ? this.$t("message.addSuccess") : this.$t("message.addFail")
-                        await this.$message.success(res)
+                        this.$message.success(res)
                     } else {
-                        await this.$message.success(this.$t("message.addExist"))
+                        this.$message.success(this.$t("message.addExist"))
                     }
                     await this.getFeedList()
                 } catch (e) {
@@ -171,9 +196,10 @@
                 this.$refs.addFeedForm.resetFields()
                 this.form.url = ''
                 this.form.proxy = ''
-                this.feedPreview = ''
+                this.feedPreview = []
                 this.addFeedLoading = false
             },
+            //获取列表
             async getFeedList() {
                 try{
                     this.feedList = await this.$nedb
@@ -184,6 +210,84 @@
                     console.log(e)
                 }
             },
+
+            //预览源
+            async privewFeed() {
+                let res = await this.$refs.addFeedForm.validate();
+                console.log(res)
+                if (!res) return false
+                try{
+                    this.previewLoading = true
+                    let feedInfo = await parserFeed(this.form.url, {proxy: this.form.proxy})
+                    this.previewLoading = false
+                    this.feedPreview = this.previewFormat(feedInfo)
+                } catch (e) {
+                    console.log(e)
+                    this.previewLoading = false
+                }
+            },
+            //预览内容格式化
+            previewFormat(data) {
+                const formatList = [
+                    {
+                        keyName: 'feedUrl',
+                        keyTitle: '源地址'
+                    },
+                    {
+                        keyName: 'title',
+                        keyTitle: '名称'
+                    },
+                    {
+                        keyName: 'description',
+                        keyTitle: '描述'
+                    },
+                    {
+                        keyName: 'webMaster',
+                        keyTitle: '站长'
+                    },
+                    {
+                        keyName: 'generator',
+                        keyTitle: '生成'
+                    },
+                    {
+                        keyName: 'link',
+                        keyTitle: '链接'
+                    },
+                    {
+                        keyName: 'language',
+                        keyTitle: '语言'
+                    },
+                    {
+                        keyName: 'lastBuildDate',
+                        keyTitle: '最后构建时间'
+                    },
+                    {
+                        keyName: 'ttl',
+                        keyTitle: 'TTL'
+                    },
+                    {
+                        keyName: 'items',
+                        keyTitle: '内容',
+                        content: []
+                    },
+                ]
+                formatList.forEach((item, index) => {
+                    if (item.keyName == 'items') {
+                        if (data['items'].length > 0) {
+                            data['items'].forEach(cItem => {
+                                formatList[index].content.push({
+                                    title: cItem.title
+                                })
+                            })
+                        }
+                    } else {
+                        if (data[item.keyName]) {
+                            formatList[index].content = data[item.keyName]
+                        }
+                    }
+                })
+                return formatList
+            }
         }
     }
 </script>

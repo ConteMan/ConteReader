@@ -11,4 +11,11 @@ module.exports = {
             .set('~', resolve('src'))
             .set('root', resolve('./'))
     },
+    css: {
+        loaderOptions: {
+            less: {
+                javascriptEnabled: true
+            }
+        }
+    }
 }
