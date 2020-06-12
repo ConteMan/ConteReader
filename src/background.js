@@ -1,15 +1,34 @@
 'use strict'
 
-import { app, protocol, BrowserWindow } from 'electron'
+import { app, protocol, BrowserWindow, Menu, Tray, shell } from 'electron'
 import {
   createProtocol,
   /* installVueDevtools */
 } from 'vue-cli-plugin-electron-builder/lib'
+
 const isDevelopment = process.env.NODE_ENV !== 'production'
+const path = require('path')
+
+// 托盘对象
+let appTray = null
+// 是否可以退出
+let trayClose = false
+// 系统托盘右键菜单
+let trayMenuTemplate
+// 系统托盘图标
+let iconPath
+// 图标的上上下文
+let contextMenu
 
 import nedb from './universal/nedb'
+let feed = require('./main/parser/feed')
 const globalAny = global;
 globalAny.nedb = nedb;
+globalAny.feed = feed
+
+if (!isDevelopment) {
+  global.__static = path.join(__dirname, '/static').replace(/\\/g, '\\\\')
+}
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -21,6 +40,7 @@ protocol.registerSchemesAsPrivileged([{scheme: 'app', privileges: { secure: true
 function createWindow () {
   // Create the browser window.
   win = new BrowserWindow({
+    center: true,
     width: 1366,
     height: 768,
     minWidth: 1366,
@@ -28,7 +48,9 @@ function createWindow () {
     frame: false, //无框
     transparent: false, //透明
     webPreferences: {
-      nodeIntegration: true
+      nodeIntegration: true,
+      // devTools:false, //是否开启 DevTools
+      // webSecurity: false, //是否禁用同源策略
     }
   })
 
@@ -40,13 +62,20 @@ function createWindow () {
     win.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
     if (!process.env.IS_TEST) win.webContents.openDevTools()
   } else {
-    createProtocol('app')
+    win.webContents.openDevTools()
+    createProtocol('cr')
     // Load the index.html when not in development
-    win.loadURL('app://./index.html')
+    win.loadURL('cr://./index.html')
   }
 
+  win.on('close', (event) => {
+    win.hide();
+    win.setSkipTaskbar(true);
+    event.preventDefault();
+  });
+
   win.on('closed', () => {
-    win = null
+      win = null
   })
 }
 
@@ -86,7 +115,9 @@ app.on('ready', async () => {
 
   }
   createWindow()
+  createTray()
 })
+
 
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {
@@ -101,4 +132,51 @@ if (isDevelopment) {
       app.quit()
     })
   }
+}
+
+/**
+ * 设置系统托盘
+ */
+function createTray() {
+  // 是否可以退出
+  trayClose = false
+
+  // eslint-disable-next-line no-undef
+  iconPath = `${__static}/images/logo_32.ico`
+
+  // 系统托盘右键菜单
+  trayMenuTemplate = [
+    {
+      label: ' 关于项目',
+      click: function () {
+        // 打开外部链接
+        shell.openExternal('https://github.com/contestudio')
+      }
+    },
+    {
+      label: ' 退出',
+      click: function () {
+        // 退出
+        trayClose = true
+        app.quit()
+        win.destroy()
+        console.log(trayClose)
+      }
+    }
+  ]
+
+  appTray = new Tray(iconPath)
+  // 图标的上上下文
+  contextMenu = Menu.buildFromTemplate(trayMenuTemplate)
+  // 设置此托盘图标的悬停提示内容
+  appTray.setToolTip('ConteReader')
+  // 设置此图标的上下文菜单
+  appTray.setContextMenu(contextMenu)
+  // 主窗口显示隐藏切换
+  appTray.on('click', () => {
+    // 还原图标
+    appTray.setImage(iconPath)
+    win.isVisible() ? win.hide() : win.show()
+    win.setSkipTaskbar(false);
+  })
 }

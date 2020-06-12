@@ -2,7 +2,7 @@
     <div>
         <div class="sider">
             <a-list class="feed-list" item-layout="horizontal" :data-source="feedList" :split="false">
-                <a-list-item class="feed-list-item" slot="renderItem" slot-scope="item, index" :key="index" @click="getItemList(item)">
+                <a-list-item class="feed-list-item" :class="{'select-feed':  item._id == current._id}" slot="renderItem" slot-scope="item, index" :key="index" @click="getItemList(item)">
                     <a-dropdown :trigger="['contextmenu']">
                         <div class="feed-title">{{ item.title }}</div>
                         <a-menu slot="overlay">
@@ -12,7 +12,7 @@
                             <a-menu-item key="2" @click="showEditFeed(item)">
                                 {{ $t("main.siderContextMenu.edit") }}
                             </a-menu-item>
-                            <a-menu-item key="3" @click="deleteFeed(item)">
+                            <a-menu-item key="3" @click="deleteFeedConfirm(item)">
                                 {{ $t("main.siderContextMenu.delete") }}
                             </a-menu-item>
                         </a-menu>
@@ -22,8 +22,9 @@
         </div>
         <div class="title">
             <a-list class="title-list" item-layout="horizontal" :data-source="items">
-                <a-list-item class="title-list-item" slot="renderItem" slot-scope="item, index" :key="index" @click="getDetail(index)">
-                    {{ item.title }}
+                <a-list-item class="title-list-item" :class="{'select-title': index == titleIndex[item.feed_id]}" slot="renderItem" slot-scope="item, index" :key="index" @click="getDetail(index)">
+                    <div>{{ item.title }}</div>
+                    <div class="time">{{ formatTime(item.updated_at, 'YYYY/MM/DD HH:mm:ss') }}</div>
                 </a-list-item>
             </a-list>
         </div>
@@ -80,17 +81,21 @@
 </template>
 
 <script>
-    import {parserFeed} from "@/parser/feed"
     import dayjs from "dayjs"
+    import { getFeedList } from "@/utils/feed"
+    import { mapGetters } from "vuex"
 
     export default {
         name: "index",
         data() {
             return {
-                feedList: [], //源列表
+                //feedList: [], //源列表
                 items: [], //源内容列表
                 detail: '', //具体内容
-                current: '', //当前源
+                current: {
+                    _id: ''
+                }, //当前源
+                titleIndex: {},
 
                 editInfo: {}, //编辑的内容
                 editFeedVisible: false,
@@ -109,31 +114,67 @@
 
             }
         },
-        mounted() {
-            this.getFeedList()
+        computed: {
+            ...mapGetters(
+                {
+                    feedList: 'feedList'
+                }
+            )
+        },
+        async mounted() {
+            try{
+                let list = await getFeedList()
+                if (Object.keys(this.current).length < 2) {
+                    this.current = list[0]
+                    await this.getItemList(list[0])
+                    this.titleIndex[list[0]._id] = 0
+                    await this.getDetail(0)
+                }
+            } catch (e) {
+                console.log(e)
+            }
         },
         methods: {
-            //源列表
-            async getFeedList() {
+            //从记录表获取源记录
+            formatTime(time, format) {
+                return dayjs.unix(time).format(format)
+            },
+            async getItemList(item) {
                 try{
-                    this.feedList = await this.$nedb
-                        .feeds
-                        .find({})
-                    console.log(this.feedList)
+                    this.current = item
+                    this.items = await this.$nedb
+                        .feed_records
+                        .find({feed_id: item._id}, { title: 1, guid: 1, feed_id: 1, updated_at: 1})
+                        .sort({created_at: -1})
+                    if (typeof this.titleIndex[item._id] === 'undefined') this.titleIndex[item._id] = 0
+                    await this.getDetail(this.titleIndex[item._id])
+                    console.log(this.items)
                 } catch (e) {
                     console.log(e)
                 }
             },
-            //从记录表获取源记录
-            async getItemList(item) {
-                this.items = await this.$nedb
-                    .feed_records
-                    .find({feed_id: item._id})
-                    .sort({created_at: -1})
-            },
+
             //获取详情
-            getDetail(index) {
-                this.detail = this.items[index]
+            async getDetail(index) {
+                try{
+                    this.titleIndex[this.items[index].feed_id] = index
+                    this.titleIndex = {...this.titleIndex}
+                    let id = typeof this.items[index] === 'undefined' ? '' : this.items[index]._id
+                    if(id) {
+                        if(id == this.detail._id) {
+                            return false
+                        }
+                        this.detail = await this.$nedb
+                            .feed_records
+                            .findOne({_id:id})
+                            .sort({created_at: -1})
+                    } else {
+                        this.detail = ''
+                        this.$message.error(this.$t('feed.detailFail'))
+                    }
+                } catch (e) {
+                    console.log(e)
+                }
             },
 
              //获取并更新源数据
@@ -142,46 +183,47 @@
                     let options = {
                         proxy: current.proxy ? current.proxy : ''
                     }
-                    let feedInfo = await parserFeed(current.url, options)
+                    let feedInfo = await this.$feed.parserFeed(current.url, options)
+                    console.log(feedInfo)
                     let count = 0
-                    if (feedInfo) {
-                        for(let index in feedInfo.items) {
+                    if (feedInfo && feedInfo.items.length > 0) {
+                        for(let index = 0; index < feedInfo.items.length; index++) {
                             let item = feedInfo.items[index]
+                            console.log('item', item)
+                            if (typeof(item.guid) != 'string') continue
                             let existItem = await this.$nedb
                                 .feed_records
-                                .findOne({guid: item.guid})
+                                .findOne({guid_md5: this.$md5(String(item.guid))})
                             if(!existItem) {
-                                count++;
-                                await this.$nedb
+                                let res = await this.$nedb
                                     .feed_records
                                     .insert(
                                     {
                                         feed_id: current._id,
                                         title: item.title,
                                         guid: item.guid,
+                                        guid_md5: this.$md5(String(item.guid)),
                                         link: item.link,
                                         content: item.content,
                                         content_snippet: item.content_snippet,
                                         publish_at: item.pubDate ? item.pubDate : '',
-                                        created_at: dayjs().second(),
-                                        updated_at: dayjs().second(),
+                                        created_at: dayjs().unix(),
+                                        updated_at: dayjs().unix(),
                                         deleted_at: 0
                                     }
                                 )
+                                if(res) count++;
                             }
                         }
                     }
-                    this.openNotificationWithIcon('success', '更新成功'+count+'条')
+                    console.log(count)
+                    if (count > 0) {
+                        await this.getItemList(current)
+                    }
+                    this.$message.info(this.$t('feed.updateSuccess', { count: count }))
                 } catch (e) {
                     console.log(e)
                 }
-            },
-            //提示
-            openNotificationWithIcon(type, message, des) {
-                this.$notification[type]({
-                    message: message,
-                    description: des
-                });
             },
 
             //编辑源
@@ -205,8 +247,7 @@
                 if (!res) return false
                 try{
                     this.editFeedLoading = true
-                    let feedInfo = await parserFeed(this.editFeedForm.url, {proxy: this.editFeedForm.proxy})
-                    console.log(feedInfo)
+                    let feedInfo = await this.$feed.parserFeed(this.editFeedForm.url, {proxy: this.editFeedForm.proxy})
                     let url = feedInfo.feedUrl ? feedInfo.feedUrl : this.editFeedForm.url
                     let editRes = await this.$nedb
                         .feeds
@@ -216,7 +257,7 @@
                             title: feedInfo.title,
                             proxy: this.editFeedForm.proxy,
                         })
-                    console.log(editRes)
+                    await getFeedList()
                     let msg = editRes ? this.$t("message.editSuccess") : this.$t("message.editFail")
                     this.$message.success(msg)
                     this.editFeedLoading = false
@@ -226,79 +267,50 @@
                     console.log(e)
                 }
             },
+
             //删除 feed
-            deleteFeed(item) {
-                console.log(item)
+            deleteFeedConfirm(item) {
+                var _this = this
+                 this.$confirm({
+                    title: _this.$t('main.siderContextMenu.delete'),
+                    content: _this.$t('feed.deleteConfirm', { title: item.title }),
+                    onOk() {
+                        _this.deleteFeed(item)
+                        _this.$message.success(_this.$t('message.deleteSuccess'))
+                    },
+                    onCancel() {},
+                })
+            },
+            async deleteFeed(item) {
+                try{
+                    let feedRes = await this.$nedb
+                        .feeds
+                        .remove({_id: item._id},{ multi: true })
+                    let recordRes = await this.$nedb
+                        .feed_records
+                        .remove({feed_id: item._id}, { multi: true })
+                    let list = await getFeedList()
+                    if (item._id == this.current._id) {
+                        this.current = list[0]
+                        await this.getItemList(list[0])
+                        this.currentTitleIndex = 0
+                        await this.getDetail(this.currentTitleIndex)
+                    }
+                    return feedRes && recordRes
+                } catch (e) {
+                    console.log(e)
+                }
             }
         }
     }
 </script>
 
 <style lang="less" scoped>
-    .container {
-        height: 100%;
-        width: 100%;
-        border-radius: 0;
-    }
-    .header {
-        position: absolute;
-        top: 0;
-        width: 100%;
-        height: 50px;
-        background: #4F4F4F;
-        color: aliceblue;
-        border-radius: 0;
-        -webkit-app-region: drag;
-        .logo {
-            display: inline-block;
-            width: 200px;
-            height: 50px;
-            line-height: 50px;
-            font-size: 20px;
-            font-weight: bold;
-            text-align: center;
-        }
-        .operate {
-            display: inline-block;
-            width: 260px;
-            text-align: center;
-            .item {
-                -webkit-app-region: no-drag;
-                display: inline-block;
-                cursor: pointer;
-                margin-right: 20px;
-                i {
-                    font-size: 16px;
-                }
-            }
-        }
-        .tool {
-            -webkit-app-region: no-drag;
-            display: inline-block;
-            float: right;
-            padding: 12px 0 0 0;
-            .item {
-                -webkit-app-region: no-drag;
-                display: inline-block;
-                cursor: pointer;
-                margin-right: 10px;
-                i {
-                    font-size: 14px;
-                }
-            }
-        }
-    }
-    .content {
-        margin-top: 50px;
-        height: calc(100% - 50px);
-        overflow: hidden;
-        border-radius: 0;
-        background: #fff;
         .sider,.title,.detail {
             display: inline-block;
             height: 100%;
         }
-        .title,.detail {
+        .title {
             overflow-y: scroll;
         }
         .sider {
@@ -320,32 +332,24 @@
                 }
             }
         }
-        ::-webkit-scrollbar {
-            width: 6px; /*滚动条宽度*/
-            height: 6px;  /*滚动条高度*/
-        }
-        /*定义滚动条轨道 内阴影+圆角*/
-        ::-webkit-scrollbar-track {
-            -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
-            border-radius: 2px;  /*滚动条的背景区域的圆角*/
-            background-color: rgba(255, 255, 255, 0.98);/*滚动条的背景颜色*/
-        }
-        /*定义滑块 内阴影+圆角*/
-        ::-webkit-scrollbar-thumb {
-            border-radius: 2px; /*滚动条的圆角*/
-            -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
-            background-color: rgba(130, 130, 130, 0.97);  /*滚动条的背景颜色*/
-        }
         .title {
             position: fixed;
             margin-left: 200px;
-            padding: 10px 20px;
             background: #F7F6F3;
             width: 260px;
-
             .title-list {
                 .title-list-item {
                     cursor: pointer;
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    display: block;
+                    .time {
+                        text-align: left;
+                        font-size: 12px;
+                    }
+                }
+                .title-list-item:last-child {
+                    margin-bottom: 50px;
                 }
             }
         }
@@ -357,5 +361,11 @@
                 visibility: visible !important;
             }
         }
-    }
+        .select-feed {
+            background: darkgrey;
+        }
+        .select-title {
+            background: grey;
+            color: #fff;
+        }
 </style>

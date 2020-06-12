@@ -80,7 +80,6 @@ Vue.use(Upload)
 Vue.use(Progress)
 Vue.use(Skeleton)
 Vue.use(Popconfirm)
-Vue.use(notification)
 Vue.use(FormModel)
 
 Vue.prototype.$confirm = Modal.confirm
@@ -90,3 +89,9 @@ Vue.prototype.$info = Modal.info
 Vue.prototype.$success = Modal.success
 Vue.prototype.$error = Modal.error
 Vue.prototype.$warning = Modal.warning
+
+message.config({
+    top: `100px`,
+    duration: 3,
+    maxCount: 3,
+});

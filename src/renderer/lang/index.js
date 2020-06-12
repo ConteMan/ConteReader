@@ -10,7 +10,7 @@ const messages = {
     'zh_CN': zh_CN,
     'en': en,
 }
-console.log(messages)
+
 export default new VueI18n({
     locale: 'zh_CN', // 设置地区
     messages, // 设置地区信息

@@ -6,6 +6,8 @@ export default {
         addExist: '已存在，请确认',
         editSuccess: '更新成功',
         editFail: '更新失败',
+        deleteSuccess: '删除成功',
+        feedFail: '获取源信息失败',
     },
     main: {
         siderContextMenu: {
@@ -29,5 +31,8 @@ export default {
             }
         },
         editTitle: '编辑源',
+        deleteConfirm: '确定删除「{title}」吗？',
+        updateSuccess: '成功更新 {count} 条',
+        detailFail: '获取信息失败,'
     }
 }

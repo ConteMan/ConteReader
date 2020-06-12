@@ -3,11 +3,12 @@ import path from 'path'
 import fs from 'fs-extra'
 import { app } from 'electron'
 
-const STORE_PATH = app.getPath('userData')
+let STORE_PATH = app.getPath('userData')
+console.log(STORE_PATH)
 
 if (process.type !== 'renderer') {
-    if (!fs.pathExistsSync(STORE_PATH)) {
-        fs.mkdirpSync(STORE_PATH)
+    if (!fs.pathExistsSync(STORE_PATH + '/data')) {
+        fs.mkdirpSync(STORE_PATH + '/data')
     }
 }
 
@@ -20,11 +21,11 @@ let config = {
 
 nedb.feeds = Datastore.create({
     ...config,
-    filename: path.join(STORE_PATH, '/feeds.db')
+    filename: path.join(STORE_PATH, '/data/feeds.db')
 })
 
 nedb.feed_records = Datastore.create({
     ...config,
-    filename: path.join(STORE_PATH, '/feed_records.db')
+    filename: path.join(STORE_PATH, '/data/feed_records.db')
 })
 export default nedb

@@ -2,15 +2,18 @@
     <div class="header">
         <div class="logo">Conte Reader</div>
         <div class="operate">
-            <div class="item">
+            <div class="item" @click="getAFeedList">
                 <i class="conte conte-home"></i>
             </div>
             <div class="item" @click="showAdd">
                 <i class="conte conte-appstoreadd"></i>
             </div>
-            <div class="item">
-                <i class="conte conte-setting"></i>
-            </div>
+<!--            <div class="item">-->
+<!--                <i class="conte conte-setting"></i>-->
+<!--            </div>-->
+<!--            <div class="item">-->
+<!--                <i class="conte conte-sync"></i>-->
+<!--            </div>-->
         </div>
         <div class="tool">
             <div class="item" @click="winControl('minimize')">
@@ -48,8 +51,8 @@
                             <a-list item-layout="horizontal" :data-source="feedPreview" :split="false" size="small">
                                 <a-list-item class="no-flex" slot="renderItem" slot-scope="item">
                                     <template v-if="item.keyName != 'items'">
-                                        <span class="text-bold margin-right-sm">{{ item.keyTitle }}: </span>
-                                        {{ item.content }}
+                                            <span class="text-bold margin-right-sm" :title="item.keyName">{{ item.keyTitle }}: </span>
+                                            {{ item.content }}
                                     </template>
                                     <template v-else>
                                         <div class="text-bold">{{ item.keyTitle }}:</div>
@@ -88,10 +91,11 @@
 </template>
 
 <script>
-    import { parserFeed } from "@/parser/feed"
+    import { getFeedList } from "@/utils/feed"
+    import dayjs from "dayjs"
 
     const electron = require('electron');
-    const remote = electron.remote;
+    const { remote } = electron;
 
     export default {
         name: "TopBar",
@@ -118,6 +122,8 @@
                 detailContent: '',
                 current: '',
             }
+        },
+        computed: {
         },
         methods: {
             winControl(action) {
@@ -146,6 +152,9 @@
                 }
             },
 
+            getAFeedList() {
+                return getFeedList()
+            },
             showAdd() {
                 this.addDrawerVisible = !this.addDrawerVisible
             },
@@ -159,7 +168,7 @@
                 if (!res) return false
                 try {
                     this.addFeedLoading = true
-                    let feedInfo = await parserFeed(this.form.url, {proxy: this.form.proxy})
+                    let feedInfo = await this.$feed.parserFeed(this.form.url, {proxy: this.form.proxy})
                     console.log(feedInfo)
                     this.addFeedLoading = false
                     if (!feedInfo) {
@@ -171,7 +180,6 @@
                     let existItem = await this.$nedb
                         .feeds
                         .findOne({url: url})
-                    console.log(existItem)
                     if (!existItem) {
                         let res = await this.$nedb
                             .feeds
@@ -181,14 +189,50 @@
                                 title: feedInfo.title,
                                 proxy: this.form.proxy,
                             })
-                        res = res ? this.$t("message.addSuccess") : this.$t("message.addFail")
-                        this.$message.success(res)
+                        console.log(res)
+                        if(!res) {
+                            this.$message.error(this.$t("message.addFail"))
+                            return false
+                        }
+                        const feedId = res._id
+                        //更新源数据
+                        if (feedInfo && feedInfo.items.length > 0) {
+                            for(let index = 0; index < feedInfo.items.length; index++) {
+                                let item = feedInfo.items[index]
+                                if (typeof(item.guid) != 'string') continue
+                                let existItem = await this.$nedb
+                                    .feed_records
+                                    .findOne({guid_md5: this.$md5(String(item.guid))})
+                                if(!existItem) {
+                                    await this.$nedb
+                                        .feed_records
+                                        .insert(
+                                            {
+                                                feed_id: feedId,
+                                                title: item.title,
+                                                guid: item.guid,
+                                                guid_md5: this.$md5(String(item.guid)),
+                                                link: item.link,
+                                                content: item.content,
+                                                content_snippet: item.content_snippet,
+                                                publish_at: item.pubDate ? item.pubDate : '',
+                                                created_at: dayjs().unix(),
+                                                updated_at: dayjs().unix(),
+                                                deleted_at: 0
+                                            }
+                                        )
+                                }
+                            }
+                        }
+                        this.$message.success(this.$t("message.addSuccess"))
                     } else {
                         this.$message.success(this.$t("message.addExist"))
                     }
-                    await this.getFeedList()
+                    this.closeAdd()
+                    await getFeedList()
                 } catch (e) {
                     console.log(e)
+                    this.$message.error(this.$t("message.feedFail"))
                 }
             },
             //重置添加
@@ -199,31 +243,20 @@
                 this.feedPreview = []
                 this.addFeedLoading = false
             },
-            //获取列表
-            async getFeedList() {
-                try{
-                    this.feedList = await this.$nedb
-                        .feeds
-                        .find({})
-                    console.log(this.feedList)
-                } catch (e) {
-                    console.log(e)
-                }
-            },
 
             //预览源
             async privewFeed() {
                 let res = await this.$refs.addFeedForm.validate();
-                console.log(res)
                 if (!res) return false
                 try{
                     this.previewLoading = true
-                    let feedInfo = await parserFeed(this.form.url, {proxy: this.form.proxy})
+                    let feedInfo = await this.$feed.parserFeed(this.form.url, {proxy: this.form.proxy})
                     this.previewLoading = false
                     this.feedPreview = this.previewFormat(feedInfo)
                 } catch (e) {
                     console.log(e)
                     this.previewLoading = false
+                    this.$message.error(this.$t("message.feedFail"))
                 }
             },
             //预览内容格式化
@@ -231,15 +264,18 @@
                 const formatList = [
                     {
                         keyName: 'feedUrl',
-                        keyTitle: '源地址'
+                        keyTitle: '源地址',
+                        require: false,
                     },
                     {
                         keyName: 'title',
-                        keyTitle: '名称'
+                        keyTitle: '名称',
+                        require: true,
                     },
                     {
                         keyName: 'description',
-                        keyTitle: '描述'
+                        keyTitle: '描述',
+                        require: true,
                     },
                     {
                         keyName: 'webMaster',
@@ -247,57 +283,75 @@
                     },
                     {
                         keyName: 'generator',
-                        keyTitle: '生成'
+                        keyTitle: '生成',
+                        require: true,
+                    },
+                    {
+                        keyName: 'docs',
+                        keyTitle: '文档',
+                        require: false,
                     },
                     {
                         keyName: 'link',
-                        keyTitle: '链接'
+                        keyTitle: '链接',
+                        require: true,
                     },
                     {
                         keyName: 'language',
-                        keyTitle: '语言'
+                        keyTitle: '语言',
+                        require: true,
                     },
                     {
                         keyName: 'lastBuildDate',
-                        keyTitle: '最后构建时间'
+                        keyTitle: '最后构建时间',
+                        require: true,
                     },
                     {
                         keyName: 'ttl',
-                        keyTitle: 'TTL'
+                        keyTitle: 'TTL',
+                    },
+                    {
+                        keyName: 'copyright',
+                        keyTitle: '版权',
                     },
                     {
                         keyName: 'items',
                         keyTitle: '内容',
+                        require: true,
                         content: []
                     },
                 ]
-                formatList.forEach((item, index) => {
+                let returnList = []
+                formatList.forEach((item) => {
+                    let current = {
+                        keyName: item.keyName,
+                        keyTitle: item.keyTitle,
+                    }
                     if (item.keyName == 'items') {
+                        current.content = []
                         if (data['items'].length > 0) {
                             data['items'].forEach(cItem => {
-                                formatList[index].content.push({
+                                current.content.push({
                                     title: cItem.title
                                 })
                             })
                         }
                     } else {
                         if (data[item.keyName]) {
-                            formatList[index].content = data[item.keyName]
+                            current.content = data[item.keyName]
                         }
                     }
+                    if(item.require || current.content) {
+                        returnList.push(current)
+                    }
                 })
-                return formatList
+                return returnList
             }
         }
     }
 </script>
 
 <style lang="less" scoped>
-    .container {
-        height: 100%;
-        width: 100%;
-        border-radius: 0;
-    }
     .header {
         position: absolute;
         top: 0;
@@ -343,76 +397,6 @@
                 i {
                     font-size: 14px;
                 }
-            }
-        }
-    }
-    .content {
-        margin-top: 50px;
-        height: calc(100% - 50px);
-        overflow: hidden;
-        border-radius: 0;
-        background: #fff;
-        .sider,.title,.detail {
-            display: inline-block;
-            height: 100%;
-        }
-        .title,.detail {
-            overflow-y: scroll;
-        }
-        .sider {
-            position: fixed;
-            background: #828282;
-            width: 200px;
-            .feed-list {
-                width: 100%;
-                color: white;
-                text-align: center;
-                .feed-list-item {
-                    padding: 10px;
-                    cursor: pointer;
-                    .feed-title {
-                        text-align: left;
-                        width: 100%;
-                        height: 100%;
-                    }
-                }
-            }
-        }
-        ::-webkit-scrollbar {
-            width: 6px; /*滚动条宽度*/
-            height: 6px;  /*滚动条高度*/
-        }
-        /*定义滚动条轨道 内阴影+圆角*/
-        ::-webkit-scrollbar-track {
-            -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
-            border-radius: 2px;  /*滚动条的背景区域的圆角*/
-            background-color: rgba(255, 255, 255, 0.98);/*滚动条的背景颜色*/
-        }
-        /*定义滑块 内阴影+圆角*/
-        ::-webkit-scrollbar-thumb {
-            border-radius: 2px; /*滚动条的圆角*/
-            -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
-            background-color: rgba(130, 130, 130, 0.97);  /*滚动条的背景颜色*/
-        }
-        .title {
-            position: fixed;
-            margin-left: 200px;
-            padding: 10px 20px;
-            background: #F7F6F3;
-            width: 260px;
-
-            .title-list {
-                .title-list-item {
-                    cursor: pointer;
-                }
-            }
-        }
-        .detail {
-            margin-left: 460px;
-            padding: 10px 20px;
-            width: calc(100% - 460px);
-            /deep/ #js_content {
-                visibility: visible !important;
             }
         }
     }

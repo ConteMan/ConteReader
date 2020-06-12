@@ -9,10 +9,13 @@ import 'ant-design-vue/dist/antd.css';
 import './renderer/style/index.less'
 
 import '@/core/lazy_use'
+import md5 from 'js-md5'
 
 Vue.config.productionTip = false
 
 Vue.prototype.$nedb = remote.getGlobal('nedb')
+Vue.prototype.$feed = remote.getGlobal('feed')
+Vue.prototype.$md5 = md5
 
 new Vue({
   router,
