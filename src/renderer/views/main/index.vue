@@ -1,5 +1,6 @@
 <template>
     <div>
+        <meta name="referrer" content="no-referrer">
         <div class="sider">
             <a-list class="feed-list" item-layout="horizontal" :data-source="feedList" :split="false">
                 <a-list-item class="feed-list-item" :class="{'select-feed':  item._id == current._id}" slot="renderItem" slot-scope="item, index" :key="index" @click="getItemList(item)">
@@ -24,13 +25,13 @@
             <a-list class="title-list" item-layout="horizontal" :data-source="items">
                 <a-list-item class="title-list-item" :class="{'select-title': index == titleIndex[item.feed_id]}" slot="renderItem" slot-scope="item, index" :key="index" @click="getDetail(index)">
                     <div>{{ item.title }}</div>
-                    <div class="time">{{ formatTime(item.updated_at, 'YYYY/MM/DD HH:mm:ss') }}</div>
+                    <div class="time">{{ formatTime(item.publish_at, 'YYYY/MM/DD HH:mm:ss') }}</div>
                 </a-list-item>
             </a-list>
         </div>
         <div class="detail">
             <template v-if="detail.content">
-                <div v-html="detail.content"></div>
+                <div v-html="formatContent(detail.content)"></div>
             </template>
             <div v-else>
                 {{ detail.title }}
@@ -91,7 +92,7 @@
             return {
                 //feedList: [], //源列表
                 items: [], //源内容列表
-                detail: '', //具体内容
+                detail: {}, //具体内容
                 current: {
                     _id: ''
                 }, //当前源
@@ -125,6 +126,7 @@
             try{
                 let list = await getFeedList()
                 if (Object.keys(this.current).length < 2) {
+                    console.log('list[0]', list[0])
                     this.current = list[0]
                     await this.getItemList(list[0])
                     this.titleIndex[list[0]._id] = 0
@@ -135,6 +137,10 @@
             }
         },
         methods: {
+            formatContent(data) {
+                //微信公众号图片处理
+                return data.replace(/src="https:\/\/mmbiz.qpic.cn/g, 'src="http://img02.store.sogou.com/net/a/05/link?appid=100520091&url=https://mmbiz.qpic.cn')
+            },
             //从记录表获取源记录
             formatTime(time, format) {
                 return dayjs.unix(time).format(format)
@@ -144,8 +150,8 @@
                     this.current = item
                     this.items = await this.$nedb
                         .feed_records
-                        .find({feed_id: item._id}, { title: 1, guid: 1, feed_id: 1, updated_at: 1})
-                        .sort({created_at: -1})
+                        .find({feed_id: item._id}, { title: 1, guid: 1, feed_id: 1, publish_at: 1,updated_at: 1})
+                        .sort({publish_at: -1})
                     if (typeof this.titleIndex[item._id] === 'undefined') this.titleIndex[item._id] = 0
                     await this.getDetail(this.titleIndex[item._id])
                     console.log(this.items)
@@ -206,7 +212,7 @@
                                         link: item.link,
                                         content: item.content,
                                         content_snippet: item.content_snippet,
-                                        publish_at: item.pubDate ? item.pubDate : '',
+                                        publish_at: item.pubDate ? dayjs(item.pubDate).unix() : dayjs().unix(),
                                         created_at: dayjs().unix(),
                                         updated_at: dayjs().unix(),
                                         deleted_at: 0
@@ -256,6 +262,7 @@
                             url: url,
                             title: feedInfo.title,
                             proxy: this.editFeedForm.proxy,
+                            updated_at: dayjs().unix(),
                         })
                     await getFeedList()
                     let msg = editRes ? this.$t("message.editSuccess") : this.$t("message.editFail")
@@ -357,9 +364,18 @@
             margin-left: 460px;
             padding: 10px 20px;
             width: calc(100% - 460px);
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
             /deep/ #js_content {
                 visibility: visible !important;
             }
+            /deep/ img {
+                max-width: 100%;
+            }
+        }
+        .detail > div {
+            max-width: 850px;
         }
         .select-feed {
             background: darkgrey;

@@ -31,20 +31,28 @@ module.exports = {
             builderOptions: {
                 nsis: {
                     oneClick:false, // 一键安装
+                    // 允许请求提升。 如果为false，则用户必须使用提升的权限重新启动安装程序。
+                    allowElevation: true,
                     allowToChangeInstallationDirectory: true, // 允许自定义目录
+                    // 安装图标
+                    installerIcon: 'build/icons/logo_256.ico',
+                    // 卸载图标
+                    uninstallerIcon: 'build/icons/logo_256.ico',
+                    // 安装时头部图标
+                    installerHeaderIcon: 'build/icons/logo_256.ico',
+                    // 创建桌面图标
+                    createDesktopShortcut: true,
+                    // 创建开始菜单图标
+                    createStartMenuShortcut: true
+                },
+                win: {
+                    icon: 'build/icons/logo_256.ico',
+                    target: 'nsis'
                 },
                 productName: "Conte Reader", // 产品名称
-                appId: "com.isconte.cr", // windows平台appId
-                copyright: "Copyright © 2012 ConteMan", // 版权
+                appId: "com.isconte.contereader", // windows平台appId
+                copyright: "Copyright © 2020 ConteMan", // 版权
             }
-        },
-        // win: {
-        //     icon: 'build/icons/icon.ico',
-        //     target: 'nsis'
-        // },
-        // nsis: {
-        //     oneClick:false, // 一键安装
-        //     allowToChangeInstallationDirectory: true // 允许自定义目录
-        // }
+        }
     }
 }

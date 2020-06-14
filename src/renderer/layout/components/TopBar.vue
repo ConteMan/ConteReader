@@ -188,6 +188,8 @@
                                 url: url,
                                 title: feedInfo.title,
                                 proxy: this.form.proxy,
+                                created_at: dayjs().unix(),
+                                updated_at: dayjs().unix(),
                             })
                         console.log(res)
                         if(!res) {
@@ -204,6 +206,7 @@
                                     .feed_records
                                     .findOne({guid_md5: this.$md5(String(item.guid))})
                                 if(!existItem) {
+                                    console.log(dayjs(item.pubDate).unix())
                                     await this.$nedb
                                         .feed_records
                                         .insert(
@@ -215,7 +218,7 @@
                                                 link: item.link,
                                                 content: item.content,
                                                 content_snippet: item.content_snippet,
-                                                publish_at: item.pubDate ? item.pubDate : '',
+                                                publish_at: item.pubDate ? dayjs(item.pubDate).unix() : dayjs().unix(),
                                                 created_at: dayjs().unix(),
                                                 updated_at: dayjs().unix(),
                                                 deleted_at: 0
