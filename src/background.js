@@ -56,6 +56,10 @@ function createWindow () {
     }
   })
 
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(__static + '/images/logo_512.png')
+  }
+
   //隐藏菜单栏
   win.setMenu(null)
 
@@ -144,7 +148,7 @@ function createTray() {
   trayClose = false
 
   // eslint-disable-next-line no-undef
-  iconPath = `${__static}/images/logo_32.ico`
+  iconPath = process.platform === 'win32' ? `${__static}/images/logo_32.ico` : `${__static}/images/logo_16_wb.png`
 
   // 系统托盘右键菜单
   trayMenuTemplate = [

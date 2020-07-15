@@ -83,8 +83,8 @@
 
 <script>
     import dayjs from "dayjs"
-    import { getFeedList } from "@/utils/feed"
-    import { mapGetters } from "vuex"
+    import {getFeedList} from "@/utils/feed"
+    import {mapGetters} from "vuex"
 
     export default {
         name: "index",
@@ -124,6 +124,7 @@
         },
         async mounted() {
             try{
+                console.log('all: ', await this.allRecords())
                 let list = await getFeedList()
                 if (Object.keys(this.current).length < 2) {
                     console.log('list[0]', list[0])
@@ -196,10 +197,12 @@
                         for(let index = 0; index < feedInfo.items.length; index++) {
                             let item = feedInfo.items[index]
                             console.log('item', item)
-                            if (typeof(item.guid) != 'string') continue
+                            let guid = item.guid ? item.guid : item.id
+                            if (typeof(guid) != 'string') continue
                             let existItem = await this.$nedb
                                 .feed_records
-                                .findOne({guid_md5: this.$md5(String(item.guid))})
+                                .findOne({guid_md5: this.$md5(String(guid))})
+                            console.log('existItem: ', existItem)
                             if(!existItem) {
                                 let res = await this.$nedb
                                     .feed_records
@@ -207,8 +210,8 @@
                                     {
                                         feed_id: current._id,
                                         title: item.title,
-                                        guid: item.guid,
-                                        guid_md5: this.$md5(String(item.guid)),
+                                        guid: guid,
+                                        guid_md5: this.$md5(String(guid)),
                                         link: item.link,
                                         content: item.content,
                                         content_snippet: item.content_snippet,
@@ -307,7 +310,16 @@
                 } catch (e) {
                     console.log(e)
                 }
-            }
+            },
+            async allRecords() {
+                try {
+                    return await this.$nedb
+                        .feed_records
+                        .find({})
+                } catch (e) {
+                    console.log(e)
+                }
+            },
         }
     }
 </script>
